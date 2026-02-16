@@ -234,12 +234,13 @@
           {{ 'qemu+ssh://' + item.libvirt_user + '@' + item.libvirt_host + '/system'
           if item.libvirt_host is defined else libvirt_uri }}
         network_name: "{{ item.network_name | default(molecule_network_name) }}"
+        sanitized_name: "{{ item.name | regex_replace('[^a-zA-Z0-9-]', '') }}"
       when: item.bridge_name is not defined
       until: >-
         net_lease_info.networks is defined and
         network_name in (net_lease_info.networks | default({})) and
         (net_lease_info.networks[network_name].dhcp_leases | default([]) |
-        selectattr('hostname', 'equalto', item.name) | list | length) > 0
+        selectattr('hostname', 'equalto', sanitized_name) | list | length) > 0
       retries: 30
       delay: 5
 
@@ -251,9 +252,10 @@
         label: "{{ item.item.name | default('skipped') }}"
       vars:
         network_name: "{{ item.item.network_name | default(molecule_network_name) }}"
+        sanitized_name: "{{ item.item.name | regex_replace('[^a-zA-Z0-9-]', '') }}"
         ip_addr: >-
           {{ item.networks[network_name].dhcp_leases |
-          selectattr('hostname', 'equalto', item.item.name) |
+          selectattr('hostname', 'equalto', sanitized_name) |
           map(attribute='ipaddr') | first }}
       when: item.networks is defined
 
