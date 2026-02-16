@@ -20,8 +20,6 @@
 import getpass
 import grp
 
-from importlib.metadata import version as pkg_version
-
 from molecule import logger, util
 from molecule.api import Driver
 
@@ -92,13 +90,9 @@ class LibVirt(Driver):
     def login_cmd_template(self):
         connection_options = " ".join(self.ssh_connection_options)
 
-        return (
-            "ssh {{address}} "
-            "-l {{user}} "
-            "-p {{port}} "
-            "-i {{identity_file}} "
-            "{}"
-        ).format(connection_options)
+        return ("ssh {{address}} -l {{user}} -p {{port}} -i {{identity_file}} {}").format(
+            connection_options
+        )
 
     @property
     def default_safe_files(self):
@@ -146,9 +140,7 @@ class LibVirt(Driver):
     def _get_instance_config(self, instance_name):
         instance_config_dict = util.safe_load_file(self._config.driver.instance_config)
 
-        return next(
-            item for item in instance_config_dict if item["instance"] == instance_name
-        )
+        return next(item for item in instance_config_dict if item["instance"] == instance_name)
 
     def sanity_checks(self):
         """Warn if user doesn't belong to a libvirt group."""
