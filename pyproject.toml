@@ -39,6 +39,7 @@ dependencies = [
   "jmespath",
   "lxml",
   "netaddr",
+  "pycdlib",
 ]
 
 [project.optional-dependencies]

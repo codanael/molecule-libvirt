@@ -135,13 +135,15 @@
       delegate_to: "{{ item.libvirt_host | default('localhost') }}"
 
     - name: Create cloud-init iso file
-      ansible.builtin.command:
-        cmd: >-
-          mkisofs -o
-          {{ libvirt_default_image_path }}/{{ item.name }}-cloud-init.iso
-          -V cidata -J -r user-data meta-data
-        chdir: "{{ temp_folder }}/{{ item.name }}-molecule"
-      changed_when: true
+      community.general.iso_create:
+        src_files:
+          - "{{ temp_folder }}/{{ item.name }}-molecule/user-data"
+          - "{{ temp_folder }}/{{ item.name }}-molecule/meta-data"
+        dest_iso: "{{ libvirt_default_image_path }}/{{ item.name }}-cloud-init.iso"
+        interchange_level: 4
+        joliet: 3
+        rock_ridge: "1.09"
+        vol_ident: "cidata"
       loop: "{{ molecule_yml.platforms }}"
       loop_control:
         label: "{{ item.name }}"
@@ -218,26 +220,42 @@
         label: "{{ item.name }}"
       register: server
 
-    - name: Get instance(s) ip address  # noqa: risky-shell-pipe
-      ansible.builtin.shell:
-        cmd: |
-          virsh --connect {{ qemu_uri }} domifaddr {{ item.name }} --source lease |
-          grep {{ mac }} |
-          awk '{ print $4 }' |
-          sed 's/\/.*//'
-      changed_when: false
+    - name: Get instance(s) ip address from DHCP leases
+      community.libvirt.virt_net:
+        command: info
+        name: "{{ network_name }}"
+        uri: "{{ qemu_uri }}"
+      register: net_lease_info
       loop: "{{ molecule_yml.platforms }}"
       loop_control:
         label: "{{ item.name }}"
-      register: instance_ip_address_local
-      until: instance_ip_address_local.stdout != ""
-      retries: 30
-      delay: 5
       vars:
         qemu_uri: >-
           {{ 'qemu+ssh://' + item.libvirt_user + '@' + item.libvirt_host + '/system'
           if item.libvirt_host is defined else libvirt_uri }}
+        network_name: "{{ item.network_name | default(molecule_network_name) }}"
       when: item.bridge_name is not defined
+      until: >-
+        net_lease_info.networks is defined and
+        network_name in (net_lease_info.networks | default({})) and
+        (net_lease_info.networks[network_name].dhcp_leases | default([]) |
+        selectattr('hostname', 'equalto', item.name) | list | length) > 0
+      retries: 30
+      delay: 5
+
+    - name: Extract instance IP from DHCP leases
+      ansible.builtin.set_fact:
+        instance_ip_local: "{{ instance_ip_local | default([]) + [{'name': item.item.name, 'stdout': ip_addr}] }}"
+      loop: "{{ net_lease_info.results }}"
+      loop_control:
+        label: "{{ item.item.name | default('skipped') }}"
+      vars:
+        network_name: "{{ item.item.network_name | default(molecule_network_name) }}"
+        ip_addr: >-
+          {{ item.networks[network_name].dhcp_leases |
+          selectattr('hostname', 'equalto', item.item.name) |
+          map(attribute='ipaddr') | first }}
+      when: item.networks is defined
 
     - name: Wait 35 seconds for arp table update
       ansible.builtin.pause:
@@ -260,8 +278,7 @@
 
     - name: Merge ip address list
       ansible.builtin.set_fact:
-        instance_ip_address: "{{ (instance_ip_address_local.results |
-          json_query('[?stdout].{name: item.name, stdout: stdout}')) +
+        instance_ip_address: "{{ (instance_ip_local | default([])) +
           (instance_ip_address_remote.results |
           json_query('[?stdout].{name: item.name, stdout: stdout}')) }}"
 
