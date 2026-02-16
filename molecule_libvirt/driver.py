@@ -20,6 +20,8 @@
 import getpass
 import grp
 
+from importlib.metadata import version as pkg_version
+
 from molecule import logger, util
 from molecule.api import Driver
 
@@ -70,7 +72,12 @@ class LibVirt(Driver):
     """  # noqa
 
     def __init__(self, config=None):
+        # Base Driver derives package name from __module__ (molecule_libvirt)
+        # but our PyPI package is molecule-libvirt-ng, so override after init.
+        saved_module = self.__module__
+        self.__module__ = "molecule_libvirt_ng"
         super().__init__(config)
+        self.__module__ = saved_module
         self._name = "libvirt"
 
     @property
