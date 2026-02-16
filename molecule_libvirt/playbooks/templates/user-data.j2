@@ -26,5 +26,5 @@ timezone: {{ item.timezone | default('America/Toronto') }}
 
 # Remove cloud-init
 runcmd:
-  - systemctl restart network
-  - dnf -y remove cloud-init || apt-get -y remove cloud-init
+  - systemctl restart NetworkManager 2>/dev/null || systemctl restart networking 2>/dev/null || systemctl restart network 2>/dev/null || true
+  - dnf -y remove cloud-init 2>/dev/null || apt-get -y remove cloud-init 2>/dev/null || true

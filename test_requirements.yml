@@ -3,3 +3,6 @@ roles: []
 collections:
   - community.libvirt
   - community.crypto
+  - ansible.posix
+  - ansible.utils
+  - community.general

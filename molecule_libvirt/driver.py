@@ -17,13 +17,11 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 #  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 #  DEALINGS IN THE SOFTWARE.
-import os
 import getpass
 import grp
-from molecule import logger
-from molecule.api import Driver
 
-from molecule import util
+from molecule import logger, util
+from molecule.api import Driver
 
 LOG = logger.get_logger(__name__)
 
@@ -72,7 +70,7 @@ class LibVirt(Driver):
     """  # noqa
 
     def __init__(self, config=None):
-        super(LibVirt, self).__init__(config)
+        super().__init__(config)
         self._name = "libvirt"
 
     @property
@@ -103,6 +101,17 @@ class LibVirt(Driver):
     def default_ssh_connection_options(self):
         return self._get_ssh_connection_options()
 
+    @property
+    def required_collections(self) -> dict[str, str]:
+        """Return collections dict containing names and versions required."""
+        return {
+            "community.libvirt": "1.3.0",
+            "community.crypto": "2.0.0",
+            "ansible.posix": "1.0.0",
+            "ansible.utils": "2.0.0",
+            "community.general": "5.0.0",
+        }
+
     def login_options(self, instance_name):
         d = {"instance": instance_name}
 
@@ -117,13 +126,13 @@ class LibVirt(Driver):
                 "ansible_host": d["address"],
                 "ansible_port": d["port"],
                 "ansible_private_key_file": d["identity_file"],
-                "connection": "ssh",
+                "ansible_connection": "ssh",
                 "ansible_ssh_common_args": " ".join(self.ssh_connection_options),
             }
         except StopIteration:
             return {}
         except IOError:
-            # Instance has yet to be provisioned , therefore the
+            # Instance has yet to be provisioned, therefore the
             # instance_config is not on disk.
             return {}
 
@@ -135,22 +144,14 @@ class LibVirt(Driver):
         )
 
     def sanity_checks(self):
-        """Return an exception if user doesn't belong to libvirt group"""
+        """Warn if user doesn't belong to a libvirt group."""
         username = getpass.getuser()
         groups = [group.gr_name for group in grp.getgrall() if username in group.gr_mem]
-        try:
-            assert "libvirt" in groups
-        except AssertionError:
-            util.sysexit_with_message(
-                "Current user doesn't belong to libvirt group. Running "
-                "'usermod --append --groups libvirt `whoami`'"
-                "and 'newgrp libvirt' should fix it."
+        libvirt_groups = {"libvirt", "libvirtd"}
+        if not libvirt_groups.intersection(groups):
+            LOG.warning(
+                "Current user doesn't belong to a libvirt group (libvirt or libvirtd). "
+                "This may cause permission issues. Running "
+                "'usermod --append --groups libvirt `whoami`' "
+                "and 'newgrp libvirt' may fix it."
             )
-
-    def template_dir(self):
-        """Return path to its own cookiecutterm templates. It is used by init
-        command in order to figure out where to load the templates from.
-        """
-        return os.path.join(
-            os.path.dirname(__file__), "cookiecutter/scenario/driver/libvirt"
-        )

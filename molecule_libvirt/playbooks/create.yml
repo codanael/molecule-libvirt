@@ -15,7 +15,7 @@
     libvirt_default_image_path: "{{ user_home_directory}}/.local/molecule/{{ molecule_scenario_name }}/vms"
     libvirt_vm_arch: "x86_64"
     libvirt_uri: "qemu:///system"
-    image_url: "https://download.fedoraproject.org/pub/fedora/linux/releases/34/Cloud/x86_64/images/Fedora-Cloud-Base-34-1.2.x86_64.qcow2"
+    image_url: "https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-amd64.qcow2"
     default_disk_size: "15G"
     default_memory_size: "1"
     default_vcpu: "1"
@@ -222,11 +222,11 @@
       when: item.bridge_name is not defined
 
     - name: Wait 35 seconds for arp table update
-      pause:
+      ansible.builtin.pause:
         seconds: 35
       vars:
         jmesquery: "[].bridge_name"
-      when: (molecule_yml.platforms | from_yaml | json_query(jmesquery)) != []
+      when: (molecule_yml.platforms | json_query(jmesquery)) != []
 
     - name: Get instance(s) running on remote host(s)
       ansible.builtin.shell: >
@@ -252,7 +252,7 @@
           ansible.builtin.set_fact:
             instance_conf_dict: {
               'instance': "{{ item.name }}",
-              'address': "{{ instance_ip_address | json_query(query) }}",
+              'address': "{{ instance_ip_address | json_query(ip_query) }}",
               'user': "{{ molecule_ssh_user }}",
               'port': "{{ item.ssh_port | default(default_ssh_port)}}",
               'identity_file': "{{ molecule_private_key_path }}",
@@ -262,14 +262,14 @@
             label: "{{ item.name }}"
           register: instance_config_dict
           vars:
-            query: "[?name=='{{ item.name}}'].stdout | [0]"
+            ip_query: "[?name=='{{ item.name}}'].stdout | [0]"
 
         - name: Convert instance config dict to a list
           ansible.builtin.set_fact:
             instance_conf: "{{ instance_config_dict.results | map(attribute='ansible_facts.instance_conf_dict') | list }}"
 
         - name: Dump instance config
-          copy:
+          ansible.builtin.copy:
             content: "{{ instance_conf | to_json | from_json | to_yaml }}"
             dest: "{{ molecule_instance_config }}"
             mode: '0600'

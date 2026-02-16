@@ -1,22 +1,69 @@
 [build-system]
 requires = [
-  "pip >= 19.3.1",
-  "setuptools >= 42.0.2",
-  "setuptools_scm[toml] >= 3.5.0",
-  "setuptools_scm_git_archive >= 1.1",
-  "wheel >= 0.33.6",
+  "setuptools >= 65.0",
+  "setuptools-scm[toml] >= 7.0",
 ]
 build-backend = "setuptools.build_meta"
 
-[tool.black]
-skip-string-normalization = false
-
-[tool.isort]
-profile = "black"
-float_to_top = true
-known_third_party = [
-  "molecule"
+[project]
+name = "molecule-libvirt"
+description = "libvirt Molecule Plugin :: run molecule tests on libvirt"
+readme = "README.rst"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [
+  { name = "Ansible by Red Hat", email = "info@ansible.com" },
 ]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Information Technology",
+  "Intended Audience :: System Administrators",
+
+  "Natural Language :: English",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: System :: Systems Administration",
+  "Topic :: Utilities",
+]
+keywords = ["ansible", "roles", "testing", "molecule", "plugin", "libvirt"]
+dynamic = ["version"]
+dependencies = [
+  "molecule >= 24.2.0",
+  "pyyaml >= 5.1",
+  "jmespath",
+  "lxml",
+  "netaddr",
+]
+
+[project.optional-dependencies]
+test = [
+  "molecule[test]",
+  "pytest",
+]
+
+[project.urls]
+Homepage = "https://github.com/codanael/molecule-libvirt"
+"Bug Tracker" = "https://github.com/codanael/molecule-libvirt/issues"
+"Source Code" = "https://github.com/codanael/molecule-libvirt"
+
+[project.entry-points."molecule.driver"]
+libvirt = "molecule_libvirt.driver:LibVirt"
 
 [tool.setuptools_scm]
 local_scheme = "no-local-version"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
