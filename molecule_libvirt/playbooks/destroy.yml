@@ -10,7 +10,7 @@
     molecule_ssh_user: molecule
     molecule_scenario_name: "{{ lookup('env', 'MOLECULE_SCENARIO_NAME') }}"
     user_home_directory: "{{ lookup('env', 'HOME') }}"
-    libvirt_default_image_path: "{{ user_home_directory}}/.local/molecule/{{ molecule_scenario_name }}/vms"
+    libvirt_default_image_path: "{{ user_home_directory }}/.local/molecule/{{ molecule_scenario_name }}/vms"
     libvirt_uri: "qemu:///system"
     libvirt_vm_arch: x86_64
 
@@ -19,7 +19,9 @@
     - name: Get list of all instances
       community.libvirt.virt:
         command: list_vms
-        uri: "{{ 'qemu+ssh://'+item.libvirt_user+'@'+item.libvirt_host+'/system' if item.libvirt_host is defined else libvirt_uri }}"
+        uri: >-
+          {{ 'qemu+ssh://' + item.libvirt_user + '@' + item.libvirt_host + '/system'
+          if item.libvirt_host is defined else libvirt_uri }}
       register: instance_list
       loop: "{{ molecule_yml.platforms }}"
       loop_control:
@@ -29,7 +31,9 @@
       community.libvirt.virt:
         command: status
         name: "{{ item.name }}"
-        uri: "{{ 'qemu+ssh://'+item.libvirt_user+'@'+item.libvirt_host+'/system' if item.libvirt_host is defined else libvirt_uri }}"
+        uri: >-
+          {{ 'qemu+ssh://' + item.libvirt_user + '@' + item.libvirt_host + '/system'
+          if item.libvirt_host is defined else libvirt_uri }}
       register: instance_status
       loop: "{{ molecule_yml.platforms }}"
       loop_control:
@@ -42,7 +46,9 @@
       community.libvirt.virt:
         name: "{{ item.name }}"
         command: shutdown
-        uri: "{{ 'qemu+ssh://'+item.libvirt_user+'@'+item.libvirt_host+'/system' if item.libvirt_host is defined else libvirt_uri }}"
+        uri: >-
+          {{ 'qemu+ssh://' + item.libvirt_user + '@' + item.libvirt_host + '/system'
+          if item.libvirt_host is defined else libvirt_uri }}
       loop: "{{ molecule_yml.platforms }}"
       loop_control:
         label: "{{ item.name }}"
@@ -57,18 +63,24 @@
       community.libvirt.virt:
         name: "{{ item.name }}"
         command: undefine
-        uri: "{{ 'qemu+ssh://'+item.libvirt_user+'@'+item.libvirt_host+'/system' if item.libvirt_host is defined else libvirt_uri }}"
+        uri: >-
+          {{ 'qemu+ssh://' + item.libvirt_user + '@' + item.libvirt_host + '/system'
+          if item.libvirt_host is defined else libvirt_uri }}
+      register: undefine_result
       loop: "{{ molecule_yml.platforms }}"
       loop_control:
         label: "{{ item.name }}"
       when: (instance_list | json_query(jmesquery)) != []
       vars:
         jmesquery: "results[?item.name=='{{ item.name }}'].list_vms[?contains(@, '{{ item.name }}')]"
+      failed_when: undefine_result.failed and 'transient domain' not in (undefine_result.msg | default(''))
 
     - name: Get libvirt vnet list
       community.libvirt.virt_net:
         command: list_nets
-        uri: "{{ 'qemu+ssh://'+item.libvirt_user+'@'+item.libvirt_host+'/system' if item.libvirt_host is defined else libvirt_uri }}"
+        uri: >-
+          {{ 'qemu+ssh://' + item.libvirt_user + '@' + item.libvirt_host + '/system'
+          if item.libvirt_host is defined else libvirt_uri }}
       register: net_list
       loop: "{{ molecule_yml.platforms }}"
       loop_control:
@@ -83,7 +95,9 @@
       community.libvirt.virt_net:
         command: stop
         name: "{{ molecule_network_name }}"
-        uri: "{{ 'qemu+ssh://'+item.libvirt_user+'@'+item.libvirt_host+'/system' if item.libvirt_host is defined else libvirt_uri }}"
+        uri: >-
+          {{ 'qemu+ssh://' + item.libvirt_user + '@' + item.libvirt_host + '/system'
+          if item.libvirt_host is defined else libvirt_uri }}
       loop: "{{ molecule_yml.platforms }}"
       loop_control:
         label: "{{ item.name }}"
@@ -97,7 +111,9 @@
       community.libvirt.virt_net:
         command: destroy
         name: "{{ molecule_network_name }}"
-        uri: "{{ 'qemu+ssh://'+item.libvirt_user+'@'+item.libvirt_host+'/system' if item.libvirt_host is defined else libvirt_uri }}"
+        uri: >-
+          {{ 'qemu+ssh://' + item.libvirt_user + '@' + item.libvirt_host + '/system'
+          if item.libvirt_host is defined else libvirt_uri }}
       loop: "{{ molecule_yml.platforms }}"
       loop_control:
         label: "{{ item.name }}"
@@ -111,7 +127,9 @@
       community.libvirt.virt_net:
         command: undefine
         name: "{{ molecule_network_name }}"
-        uri: "{{ 'qemu+ssh://'+item.libvirt_user+'@'+item.libvirt_host+'/system' if item.libvirt_host is defined else libvirt_uri }}"
+        uri: >-
+          {{ 'qemu+ssh://' + item.libvirt_user + '@' + item.libvirt_host + '/system'
+          if item.libvirt_host is defined else libvirt_uri }}
       loop: "{{ molecule_yml.platforms }}"
       loop_control:
         label: "{{ item.name }}"
@@ -146,6 +164,6 @@
 
     - name: Remove folder molecule vms folder
       ansible.builtin.file:
-        path: "{{ user_home_directory}}/.local/molecule-libvirt-temp"
+        path: "{{ user_home_directory }}/.local/molecule-libvirt-temp"
         state: absent
       delegate_to: "{{ item.libvirt_host if item.libvirt_host is defined else 'localhost' }}"
